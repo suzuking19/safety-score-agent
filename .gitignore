@@ -1,0 +1,106 @@
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Machine Learning / AI
+models/
+*.model
+*.pkl
+*.pickle
+weights/
+checkpoints/
+logs/
+tensorboard_logs/
+mlruns/
+wandb/
+
+# ADK and LLM specific
+agent_logs/
+conversation_history/
+agent_cache/
+*.log
+temp/
+tmp/
+
+# API keys and credentials
+credentials.json
+service-account-key.json
+google-credentials.json
+openai-api-key.txt
+
+# Data files
+data/
+datasets/
+*.csv
+*.json
+*.xml
+*.parquet
+
+# Output and generated files
+output/
+results/
+generated/
+artifacts/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation
+docs/_build/
+site/
