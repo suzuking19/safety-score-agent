@@ -41,6 +41,6 @@ conflict_info_agent = LlmAgent(
     重要: 必ずツールを使用して最新の外務省情報を取得し、推測や古い情報に基づいた回答は避けてください。
     """,
     description="外務省の海外安全情報に基づくテロ・紛争リスク分析エージェント",
-    # tools=[],  # Toolを直接登録せず、関数として呼び出す
+    tools=[get_conflict_risk_info, get_terrorism_info],
     output_key="conflict_info",
 )
