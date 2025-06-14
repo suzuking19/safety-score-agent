@@ -5,7 +5,7 @@ from .tool import get_conflict_risk_info, get_terrorism_info
 GEMINI_MODEL = "gemini-2.0-flash"
 
 # Conflict Information Agent
-conflict_info_agent = LlmAgent(
+conflict_agent = LlmAgent(
     name="ConflictInfoAgent",
     model=GEMINI_MODEL,
     instruction="""
