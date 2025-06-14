@@ -1,5 +1,5 @@
 from google.adk.agents import LlmAgent
-from .tool import conflict_risk_tool, terrorism_info_tool
+from .tool import get_conflict_risk_info, get_terrorism_info
 
 # --- Constants ---
 GEMINI_MODEL = "gemini-2.0-flash"
@@ -11,7 +11,7 @@ conflict_info_agent = LlmAgent(
     instruction="""
     あなたは外務省の海外安全情報を基に、世界各地のテロ・紛争リスクを分析する専門エージェントです。
 
-    安全スコア評価を求められた場合は、以下の手順で対応してください：
+    安全スコアを出力するための評価を求められた場合は、以下の手順で対応してください：
 
     1. 'get_conflict_risk_info' ツールを使用して、指定された国または地域のテロ・紛争リスク情報を取得
     2. 'get_terrorism_info' ツールを使用して、該当地域のテロ組織や脅威情報を補完
@@ -41,6 +41,6 @@ conflict_info_agent = LlmAgent(
     重要: 必ずツールを使用して最新の外務省情報を取得し、推測や古い情報に基づいた回答は避けてください。
     """,
     description="外務省の海外安全情報に基づくテロ・紛争リスク分析エージェント",
-    tools=[conflict_risk_tool, terrorism_info_tool],
+    # tools=[],  # Toolを直接登録せず、関数として呼び出す
     output_key="conflict_info",
 )

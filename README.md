@@ -59,7 +59,6 @@ root_agent (SequentialAgent)
 myagent/
 ├── README.md                    # プロジェクト説明文書
 ├── requirements.txt             # Python依存関係
-├── .env.example                 # 環境変数設定例
 ├── .gitignore                   # Git除外設定
 │
 └── safety_score_agent/          # メインエージェントパッケージ
@@ -119,8 +118,6 @@ myagent/
 #### 4. 法執行機関信頼性評価: XX/25 点
 
 ### 🚨 総合的な安全対策提言
-
-### 📞 緊急時連絡先
 ```
 
 ## 🔧 セットアップ・使用方法
@@ -130,9 +127,10 @@ myagent/
 #### 1. リポジトリのクローン
 
 ```bash
-git clone [このリポジトリのURL]
-cd myagent
+git clone https://github.com/suzuking19/safety-score-agent.git
 ```
+
+該当ディレクトリへの移動
 
 #### 2. 環境変数の設定
 
@@ -163,16 +161,6 @@ pip install -r requirements.txt
 
 ```bash
 adk web
-```
-
-### 💡 使用例
-
-```python
-from safety_score_agent.agent import root_agent
-
-# 日本の安全評価を実行
-result = root_agent.run("日本の安全スコアを評価してください")
-print(result)
 ```
 
 ## 🔑 必要な環境変数

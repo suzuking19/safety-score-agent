@@ -1,8 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-from typing import Dict, List, Optional
-from google.adk.agents import Tool
+from typing import Dict
 
 
 def get_conflict_risk_info(country_name: str = None, region: str = None) -> Dict:
@@ -18,7 +17,6 @@ def get_conflict_risk_info(country_name: str = None, region: str = None) -> Dict
     """
     try:
         base_url = "https://www.anzen.mofa.go.jp"
-        risk_map_url = f"{base_url}/riskmap/"
         
         # 国別コードマッピング（主要な高リスク国）
         country_codes = {
@@ -181,15 +179,4 @@ def get_terrorism_info(region: str = "global") -> Dict:
     }
 
 
-# Google ADK Tool として登録
-conflict_risk_tool = Tool(
-    name="get_conflict_risk_info",
-    func=get_conflict_risk_info,
-    description="外務省の海外安全情報から特定国のテロ・紛争リスク情報を取得します。国名を指定することで、その国の危険レベル、テロ・紛争の詳細情報、外務省の勧告内容を取得できます。"
-)
 
-terrorism_info_tool = Tool(
-    name="get_terrorism_info", 
-    func=get_terrorism_info,
-    description="指定された地域のテロリスク情報を取得します。活動中のテロ組織、最近の脅威、高リスク国などの情報を提供します。"
-)
