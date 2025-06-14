@@ -26,7 +26,7 @@
 ```
 root_agent (SequentialAgent)
 ├── safety_score_gatherer (ParallelAgent) ── 並列データ収集
-│   ├── conflict_info_agent     # テロ・紛争リスク評価
+│   ├── conflict_agent     # テロ・紛争リスク評価
 │   ├── crime_agent            # 犯罪・治安評価
 │   ├── infra_agent            # 社会基盤安定度評価
 │   └── law_agent              # 法執行機関信頼性評価
