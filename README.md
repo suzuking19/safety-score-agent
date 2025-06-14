@@ -31,60 +31,86 @@ root_agent (SequentialAgent)
 
 #### 1. テロ・紛争リスク評価 (25 点満点)
 
-- **データソース**: 外務省海外安全情報
-- **評価基準**: 危険レベル、テロ組織活動、武力衝突リスク
-- **ツール**: 外務省危険情報取得、テロリスク分析
+- **主要データソース**:
+  - 外務省海外安全情報 (`https://www.anzen.mofa.go.jp/`)
+- **評価基準**: 危険レベル（レベル 1-4）、テロ組織活動、武力衝突リスク
+- **取得データ**:
+  - 国別危険情報（退避勧告・渡航中止勧告等）
+  - テロ・紛争関連キーワード（テロ、武力衝突、誘拐、過激派など）による情報抽出
+- **対象国**: 主要高リスク国（イエメン、シリア、アフガニスタン、イラク、ソマリア等）
 
 #### 2. 犯罪・治安評価 (25 点満点)
 
-- **データソース**: Numbeo、世界平和度指数、UNODC
-- **評価基準**: 凶悪犯罪率、軽犯罪率、治安維持能力
-- **ツール**: 犯罪統計分析、旅行者リスク評価
+- **主要データソース**:
+  - Numbeo 犯罪データベース (`https://www.numbeo.com/crime/`)
+  - Vision of Humanity - 世界平和度指数 (`https://www.visionofhumanity.org/maps/`)
+  - UNODC 犯罪統計 (`https://dataunodc.un.org/dp-intentional-homicide-victims`)
+  - WHO 死亡統計 (`https://www.who.int/data/gho/data/themes/mortality-and-global-health-estimates`)
+- **評価基準**:
+  - 凶悪犯罪率（殺人・強盗・暴行）
+  - 軽犯罪率（スリ・置き引き・詐欺）
+  - 治安維持能力
+- **取得データ**: 犯罪指数、殺人率、安全度指標
 
 #### 3. 社会基盤安定度評価 (25 点満点)
 
-- **データソース**: 汚職認識指数、WHO 交通安全、医療システム評価
-- **評価基準**: 政治腐敗度、交通安全、医療水準
-- **ツール**: インフラ安定度分析、緊急対応能力評価
+- **主要データソース**:
+  - Transparency International 汚職認識指数 (`https://www.transparency.org/en/cpi`)
+  - WHO 交通安全データ (`https://www.who.int/data/gho/data/themes/road-safety`)
+  - WHO 世界保健統計 (`https://www.who.int/data/gho`)
+- **評価基準**:
+  - 政治腐敗度（汚職認識指数）
+  - 交通安全（交通事故死亡率）
+  - 医療水準（医療アクセス・品質）
+- **取得データ**: CPI 指数、交通事故統計、医療システム評価
 
 #### 4. 法執行機関信頼性評価 (25 点満点)
 
-- **データソース**: 世界銀行ガバナンス指標、警察信頼度調査
-- **評価基準**: 警察信頼度、汚職度合い、司法制度機能
-- **ツール**: 法執行機関信頼性分析、旅行者サポート評価
+- **主要データソース**:
+  - Vision of Humanity - 世界平和度指数 (`https://www.visionofhumanity.org`)
+  - 世界銀行ガバナンス指標 (`https://info.worldbank.org`)
+  - Transparency International (`https://www.transparency.org/en/cpi`)
+  - Gallup 世論調査 (`https://www.gallup.com/analytics/232838/world-poll.aspx`)
+- **評価基準**:
+  - 警察信頼度・効率性
+  - 汚職度合い（司法・警察）
+  - 司法制度機能（法の支配）
+- **取得データ**: 警察信頼性指標、司法独立性、法の支配指数
 
 ## 📁 プロジェクト構造
 
 ```
 myagent/
-├── README.md                    # プロジェクト説明文書
-├── requirements.txt             # Python依存関係
-├── .gitignore                   # Git除外設定
+├── README.md                          # プロジェクト説明文書
+├── requirements.txt                   # Python依存関係
 │
-└── safety_score_agent/          # メインエージェントパッケージ
-    ├── __init__.py              # パッケージ初期化
-    ├── agent.py                 # メインエージェント定義
-    ├── .env.example             # 環境変数設定例
+└── safety_score_agent/                # メインエージェントパッケージ
+    ├── agent.py                       # メインエージェント定義
+    ├── .env.example                   # 環境変数設定テンプレート
     │
-    └── sub_agents/              # サブエージェント群
-        ├── conflict_agent/      # テロ・紛争リスク評価
-        │   ├── agent.py         # エージェント定義
-        │   └── tool.py          # 外務省データ取得ツール
+    └── sub_agents/                    # サブエージェント群
+        ├── conflict_agent/            # テロ・紛争リスク評価
+        │   ├── agent.py               # エージェント定義
+        │   ├── tool.py                # 外務省データ取得ツール
+        │   └── test_tool.py           # ツールテストファイル
         │
-        ├── crime_agent/         # 犯罪・治安評価
-        │   ├── agent.py         # エージェント定義
-        │   └── tool.py          # 犯罪統計分析ツール
+        ├── crime_agent/               # 犯罪・治安評価
+        │   ├── agent.py               # エージェント定義
+        │   ├── tool.py                # 犯罪統計分析ツール
+        │   └── test_tool.py           # ツールテストファイル
         │
-        ├── infra_agent/         # 社会基盤安定度評価
-        │   ├── agent.py         # エージェント定義
-        │   └── tool.py          # インフラ分析ツール
+        ├── infra_agent/               # 社会基盤安定度評価
+        │   ├── agent.py               # エージェント定義
+        │   ├── tool.py                # インフラ分析ツール
+        │   └── test_tool.py           # ツールテストファイル
         │
-        ├── law_agent/           # 法執行機関信頼性評価
-        │   ├── agent.py         # エージェント定義
-        │   └── tool.py          # 法執行機関分析ツール
+        ├── law_agent/                 # 法執行機関信頼性評価
+        │   ├── agent.py               # エージェント定義
+        │   ├── tool.py                # 法執行機関分析ツール
+        │   └── test_tool.py           # ツールテストファイル
         │
-        └── synthesizer_agent/   # 統合評価エージェント
-            └── agent.py         # 総合レポート生成
+        └── synthesizer_agent/         # 統合評価エージェント
+            └── agent.py               # 総合レポート生成
 ```
 
 ## 🎯 安全レベル分類
@@ -139,7 +165,14 @@ git clone https://github.com/suzuking19/safety-score-agent.git
 cp safety_score_agent/.env.example safety_score_agent/.env
 
 # Google API Keyを設定
-echo "GOOGLE_API_KEY=あなたのAPIキー" > safety_score_agent/.env
+echo "GOOGLE_API_KEY=あなたのAPIキー" >> safety_score_agent/.env
+```
+
+または、`.env`ファイルを直接編集：
+
+```bash
+# safety_score_agent/.env
+GOOGLE_API_KEY=your_actual_api_key_here
 ```
 
 #### 3. 仮想環境の作成とアクティベート
@@ -171,24 +204,71 @@ adk web
 
 ## 📚 データソース
 
-- **外務省**: 海外安全情報・危険情報
-- **世界平和度指数 (GPI)**: 暴力犯罪認識・警察信頼性
-- **Numbeo**: クラウドソース犯罪指数
-- **国連薬物犯罪事務所 (UNODC)**: 殺人率統計
-- **世界銀行**: ガバナンス指標・法の支配
-- **汚職認識指数 (CPI)**: 政治透明性
-- **WHO**: 交通安全・医療システム評価
+### 🌐 実際に使用されているウェブサイト・API
 
-## �️ 技術スタック
+#### テロ・紛争リスク評価
 
-- **フレームワーク**: Google Agent Development Kit (ADK)
+- **外務省海外安全情報**: `https://www.anzen.mofa.go.jp/`
+  - 国別危険情報ページ（例：イエメン、シリア、アフガニスタンなど）
+  - 危険レベル（レベル 1-4）の自動判定
+  - テロ・紛争関連キーワードによる情報抽出
+
+#### 犯罪・治安評価
+
+- **Numbeo 犯罪データベース**: `https://www.numbeo.com/crime/`
+  - 国別犯罪指数データの取得
+  - リアルタイム安全度スコア
+- **Vision of Humanity**: `https://www.visionofhumanity.org/maps/`
+  - 世界平和度指数（Global Peace Index）
+  - 国別平和・治安指標
+- **UNODC**: `https://dataunodc.un.org/dp-intentional-homicide-victims`
+  - 国際殺人統計データ
+- **WHO**: `https://www.who.int/data/gho/data/themes/mortality-and-global-health-estimates`
+  - 死亡統計・健康指標
+
+#### 社会基盤安定度評価
+
+- **Transparency International**: `https://www.transparency.org/en/cpi`
+  - 汚職認識指数（Corruption Perceptions Index）
+- **WHO 交通安全**: `https://www.who.int/data/gho/data/themes/road-safety`
+  - 国別交通事故死亡率データ
+- **WHO 世界保健統計**: `https://www.who.int/data/gho`
+  - 医療システム評価・医療アクセス指標
+
+#### 法執行機関信頼性評価
+
+- **世界銀行**: `https://info.worldbank.org`
+  - ガバナンス指標（Worldwide Governance Indicators）
+  - 法の支配指数
+- **Vision of Humanity**: `https://www.visionofhumanity.org`
+  - 警察信頼性・司法制度指標
+- **Gallup**: `https://www.gallup.com/analytics/232838/world-poll.aspx`
+  - 世論調査データ（警察信頼度等）
+
+### 📊 データ取得の特徴
+
+- **リアルタイム取得**: 各 API から最新データを動的に取得
+- **フォールバック機能**: データ取得失敗時の代替データ提供
+- **多言語対応**: 国名の表記揺れに対して複数パターンで検索
+- **エラーハンドリング**: 接続エラー時の適切な処理とログ出力
+
+## 🛠️ 技術スタック
+
+- **フレームワーク**: Google Agent Development Kit (ADK) 1.3.0
 - **LLM モデル**: Gemini 2.0 Flash
 - **言語**: Python 3.8+
 - **主要ライブラリ**:
-  - `google-adk`
-  - `requests`
-  - `beautifulsoup4`
-  - `pydantic`
+  - `google-adk==1.3.0` - メインエージェントフレームワーク
+  - `google-genai==1.20.0` - Gemini AI 統合
+  - `requests==2.32.4` - HTTP 通信
+  - `beautifulsoup4==4.12.3` - HTML 解析
+  - `pydantic==2.11.6` - データ検証
+  - `fastapi==0.115.12` - Web API（ADK 内部使用）
+  - `httpx==0.28.1` - 非同期 HTTP 通信
+- **データ処理**:
+  - BeautifulSoup4 による Web スクレイピング
+  - Requests ライブラリによる多重データソースアクセス
+  - Pydantic によるデータ検証・構造化
 
 ## 🤝 コントリビューション
 
