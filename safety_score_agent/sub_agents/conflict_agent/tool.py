@@ -1,10 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-from typing import Dict
+from typing import Dict, Optional
 
 
-def get_conflict_risk_info(country_name: str = None, region: str = None) -> Dict:
+def get_conflict_risk_info(country_name: Optional[str] = None, region: Optional[str] = None) -> Dict:
     """
     外務省の海外安全情報サイトからテロ・紛争リスクの情報を取得する
     

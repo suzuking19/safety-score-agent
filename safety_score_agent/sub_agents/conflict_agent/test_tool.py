@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import requests
+from typing import Optional, Dict
 from tool import get_conflict_risk_info, get_terrorism_info
 
 
@@ -108,6 +109,37 @@ class TestConflictRiskFunction(unittest.TestCase):
                 self.assertIn(expected_level, result["data"]["イエメン"]["danger_level"])
             else:
                 self.assertEqual(result["data"]["イエメン"]["danger_level"], "不明")
+    
+    def test_function_signature_compatibility(self):
+        """関数シグネチャの型アノテーション検証"""
+        # None値での呼び出しが正常に動作することを確認
+        result_none = get_conflict_risk_info(None, None)
+        self.assertIsInstance(result_none, dict)
+        
+        # 文字列での呼び出しが正常に動作することを確認  
+        result_str = get_conflict_risk_info("日本", "アジア")
+        self.assertIsInstance(result_str, dict)
+        
+        # パラメータなしでの呼び出しが正常に動作することを確認
+        result_empty = get_conflict_risk_info()
+        self.assertIsInstance(result_empty, dict)
+    
+    def test_return_type_structure(self):
+        """戻り値の型構造検証"""
+        result = get_conflict_risk_info()
+        
+        # 戻り値がDict型であることを確認
+        self.assertIsInstance(result, dict)
+        
+        # 必須キーの存在確認
+        required_keys = ["status", "high_risk_countries", "conflict_summary"]
+        for key in required_keys:
+            self.assertIn(key, result, f"Required key '{key}' is missing")
+        
+        # 各値の型確認
+        self.assertIsInstance(result["status"], str)
+        self.assertIsInstance(result["high_risk_countries"], list)
+        self.assertIsInstance(result["conflict_summary"], str)
 
 
 class TestTerrorismInfoFunction(unittest.TestCase):
