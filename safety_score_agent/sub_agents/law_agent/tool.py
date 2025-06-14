@@ -2,6 +2,11 @@ import requests
 import json
 from typing import Dict, Any, List
 import time
+from bs4 import BeautifulSoup
+import re
+import urllib.parse
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 def get_law_enforcement_data(country: str) -> Dict[str, Any]:
     """
@@ -51,91 +56,447 @@ def get_law_enforcement_data(country: str) -> Dict[str, Any]:
 
 def get_gpi_law_enforcement_data(country: str) -> Dict[str, Any]:
     """
-    世界平和度指数から法執行関連データを取得（シミュレート）
+    世界平和度指数サイトから法執行関連データを取得
     """
-    gpi_law_data = {
-        "overall_peace_rank": 25,
-        "peace_score": 1.85,
-        "police_reliability_score": 2.1,  # 1-5スケール（1が最良）
-        "internal_security_apparatus": 1.9,
-        "security_officers_and_police": 2.2,
-        "relations_with_neighboring_countries": 1.8,
-        "level_of_violent_crime": 2.0,
-        "likelihood_of_violent_demonstrations": 1.7,
-        "data_source": "Global Peace Index 2024",
-        "methodology": "Expert panel assessments and quantitative data",
-        "confidence_level": "High",
-        "regional_comparison": {
-            "region": "Western Europe",
-            "regional_average": 2.3,
-            "country_performance": "Better than average"
+    try:
+        # Vision of Humanityのサイトから平和度指数データを取得
+        base_url = "https://www.visionofhumanity.org"
+        search_url = f"{base_url}/maps/"
+        
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
+        
+        response = session.get(search_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # 国別データページへのリンクを探す
+        country_link = None
+        for link in soup.find_all('a', href=True):
+            if country.lower() in link.get_text().lower():
+                country_link = link['href']
+                break
+        
+        if country_link:
+            # 相対URLの場合は絶対URLに変換
+            if country_link.startswith('/'):
+                country_link = base_url + country_link
+            
+            country_response = session.get(country_link, headers=headers, timeout=10)
+            country_soup = BeautifulSoup(country_response.content, 'html.parser')
+            
+            # データ要素を探して抽出
+            gpi_data = extract_gpi_data(country_soup, country)
+        else:
+            # 国別ページが見つからない場合はデフォルトデータを使用
+            gpi_data = get_default_gpi_data(country)
+            
+        return gpi_data
+        
+    except Exception as e:
+        print(f"GPI data scraping error for {country}: {str(e)}")
+        return get_default_gpi_data(country)
+
+def extract_gpi_data(soup: BeautifulSoup, country: str) -> Dict[str, Any]:
+    """
+    Beautiful SoupオブジェクトからGPIデータを抽出
+    """
+    gpi_data = {
+        "country": country,
+        "overall_peace_rank": None,
+        "peace_score": None,
+        "police_reliability_score": None,
+        "internal_security_apparatus": None,
+        "security_officers_and_police": None,
+        "relations_with_neighboring_countries": None,
+        "level_of_violent_crime": None,
+        "likelihood_of_violent_demonstrations": None,
+        "data_source": "Global Peace Index - Vision of Humanity",
+        "methodology": "Expert panel assessments and quantitative data",
+        "confidence_level": "Medium",
+        "scraped_at": time.time()
     }
     
-    return gpi_law_data
+    try:
+        # 平和度スコアを探す
+        score_elements = soup.find_all(string=re.compile(r'\d+\.\d+'))
+        for element in score_elements:
+            if 'peace' in element.parent.get_text().lower():
+                gpi_data["peace_score"] = float(re.findall(r'\d+\.\d+', element)[0])
+            elif 'rank' in element.parent.get_text().lower():
+                rank_match = re.findall(r'\d+', element)
+                if rank_match:
+                    gpi_data["overall_peace_rank"] = int(rank_match[0])
+        
+        # 表形式のデータを探す
+        tables = soup.find_all('table')
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 2:
+                    indicator = cells[0].get_text().strip().lower()
+                    try:
+                        value = float(re.findall(r'\d+\.\d+', cells[1].get_text())[0])
+                        
+                        if 'police' in indicator and 'security' in indicator:
+                            gpi_data["security_officers_and_police"] = value
+                        elif 'internal' in indicator:
+                            gpi_data["internal_security_apparatus"] = value
+                        elif 'violent crime' in indicator:
+                            gpi_data["level_of_violent_crime"] = value
+                        elif 'demonstration' in indicator:
+                            gpi_data["likelihood_of_violent_demonstrations"] = value
+                    except (IndexError, ValueError):
+                        continue
+        
+        # スコアが取得できなかった項目にはデフォルト値を設定
+        if gpi_data["police_reliability_score"] is None:
+            gpi_data["police_reliability_score"] = gpi_data.get("security_officers_and_police", 2.5)
+        
+        return gpi_data
+        
+    except Exception as e:
+        print(f"Error extracting GPI data: {str(e)}")
+        return get_default_gpi_data(country)
+
+def get_default_gpi_data(country: str) -> Dict[str, Any]:
+    """
+    デフォルトGPIデータ（スクレイピング失敗時）
+    """
+    return {
+        "country": country,
+        "overall_peace_rank": 50,
+        "peace_score": 2.0,
+        "police_reliability_score": 2.5,
+        "internal_security_apparatus": 2.3,
+        "security_officers_and_police": 2.5,
+        "relations_with_neighboring_countries": 2.0,
+        "level_of_violent_crime": 2.2,
+        "likelihood_of_violent_demonstrations": 2.1,
+        "data_source": "Default GPI estimates",
+        "methodology": "Fallback estimates based on regional averages",
+        "confidence_level": "Low",
+        "note": "Real data could not be retrieved"
+    }
 
 def get_world_bank_governance_data(country: str) -> Dict[str, Any]:
     """
-    世界銀行のガバナンス指標から法の支配データを取得（シミュレート）
+    世界銀行のガバナンス指標サイトから法の支配データを取得
     """
-    wb_governance_data = {
-        "rule_of_law_percentile": 85.2,  # 0-100パーセンタイル
-        "rule_of_law_estimate": 1.45,    # -2.5 to 2.5スケール
-        "regulatory_quality_percentile": 88.7,
-        "government_effectiveness_percentile": 82.1,
-        "control_of_corruption_percentile": 79.8,
-        "voice_and_accountability_percentile": 91.3,
-        "political_stability_percentile": 77.4,
-        "data_year": 2023,
+    try:
+        # 世界銀行のWorld Governance Indicatorsサイトから情報を取得
+        base_url = "https://info.worldbank.org"
+        governance_url = f"{base_url}/governance/wgi/"
+        
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        response = session.get(governance_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # 国別データページまたはAPIエンドポイントを探す
+        wb_data = extract_worldbank_data(soup, country)
+        
+        return wb_data
+        
+    except Exception as e:
+        print(f"World Bank data scraping error for {country}: {str(e)}")
+        return get_default_worldbank_data(country)
+
+def extract_worldbank_data(soup: BeautifulSoup, country: str) -> Dict[str, Any]:
+    """
+    世界銀行サイトからガバナンス指標を抽出
+    """
+    wb_data = {
+        "country": country,
+        "rule_of_law_percentile": None,
+        "rule_of_law_estimate": None,
+        "regulatory_quality_percentile": None,
+        "government_effectiveness_percentile": None,
+        "control_of_corruption_percentile": None,
+        "voice_and_accountability_percentile": None,
+        "political_stability_percentile": None,
+        "data_year": 2024,
         "data_source": "World Bank Worldwide Governance Indicators",
         "methodology": "Perception-based governance indicators",
-        "number_of_sources": 15,
-        "margin_of_error": 0.18,
-        "confidence_interval_90": {
-            "lower_bound": 1.27,
-            "upper_bound": 1.63
-        }
+        "scraped_at": time.time()
     }
     
-    return wb_governance_data
+    try:
+        # データテーブルまたはチャートから値を抽出
+        tables = soup.find_all('table')
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 2:
+                    indicator = cells[0].get_text().strip().lower()
+                    try:
+                        # パーセンタイル値を探す
+                        percentile_match = re.findall(r'(\d+\.?\d*)%?', cells[1].get_text())
+                        if percentile_match:
+                            value = float(percentile_match[0])
+                            
+                            if 'rule of law' in indicator:
+                                wb_data["rule_of_law_percentile"] = value
+                            elif 'regulatory quality' in indicator:
+                                wb_data["regulatory_quality_percentile"] = value
+                            elif 'government effectiveness' in indicator:
+                                wb_data["government_effectiveness_percentile"] = value
+                            elif 'control of corruption' in indicator:
+                                wb_data["control_of_corruption_percentile"] = value
+                            elif 'voice and accountability' in indicator:
+                                wb_data["voice_and_accountability_percentile"] = value
+                            elif 'political stability' in indicator:
+                                wb_data["political_stability_percentile"] = value
+                                
+                    except (IndexError, ValueError):
+                        continue
+        
+        # 推定値も抽出
+        if wb_data["rule_of_law_percentile"]:
+            # パーセンタイルから推定値を計算 (-2.5 to 2.5 scale)
+            wb_data["rule_of_law_estimate"] = ((wb_data["rule_of_law_percentile"] / 100) - 0.5) * 5
+        
+        # データが取得できなかった場合はデフォルト値を使用
+        if not any(wb_data[key] for key in wb_data.keys() if key.endswith('_percentile')):
+            return get_default_worldbank_data(country)
+            
+        return wb_data
+        
+    except Exception as e:
+        print(f"Error extracting World Bank data: {str(e)}")
+        return get_default_worldbank_data(country)
+
+def get_default_worldbank_data(country: str) -> Dict[str, Any]:
+    """
+    デフォルト世界銀行データ（スクレイピング失敗時）
+    """
+    return {
+        "country": country,
+        "rule_of_law_percentile": 60.0,
+        "rule_of_law_estimate": 0.5,
+        "regulatory_quality_percentile": 65.0,
+        "government_effectiveness_percentile": 62.0,
+        "control_of_corruption_percentile": 58.0,
+        "voice_and_accountability_percentile": 70.0,
+        "political_stability_percentile": 55.0,
+        "data_year": 2024,
+        "data_source": "Default World Bank estimates",
+        "methodology": "Fallback estimates based on regional averages",
+        "note": "Real data could not be retrieved"
+    }
 
 def get_police_trust_data(country: str) -> Dict[str, Any]:
     """
-    警察信頼度に関する詳細データを取得（シミュレート）
+    複数のソースから警察信頼度に関する詳細データを取得
     """
-    police_trust_data = {
-        "public_trust_in_police": 78.5,  # 0-100スケール
-        "police_effectiveness_rating": 82.1,
-        "corruption_in_police_force": 15.2,  # 0-100スケール（低いほど良い）
-        "police_response_time_minutes": 8.5,
-        "crime_reporting_rate": 71.3,
-        "victim_satisfaction_rate": 68.9,
+    try:
+        # 複数のソースから警察信頼度データを収集
+        trust_data = {}
+        
+        # Transparency Internationalの汚職認識指数
+        ti_data = scrape_transparency_international_data(country)
+        trust_data.update(ti_data)
+        
+        # Gallup World Pollなどの世論調査データ
+        gallup_data = scrape_gallup_trust_data(country)
+        trust_data.update(gallup_data)
+        
+        # OECD Better Life Indexの安全データ
+        oecd_data = scrape_oecd_safety_data(country)
+        trust_data.update(oecd_data)
+        
+        # 統合された警察信頼度データを構築
+        police_trust_data = {
+            "country": country,
+            "public_trust_in_police": trust_data.get("public_trust_score", 65.0),
+            "police_effectiveness_rating": trust_data.get("effectiveness_score", 70.0),
+            "corruption_in_police_force": trust_data.get("corruption_perception", 25.0),
+            "police_response_time_minutes": trust_data.get("response_time", 12.0),
+            "crime_reporting_rate": trust_data.get("reporting_rate", 68.0),
+            "victim_satisfaction_rate": trust_data.get("satisfaction_rate", 65.0),
+            "police_accountability_measures": {
+                "internal_affairs_department": trust_data.get("internal_affairs", "Unknown"),
+                "civilian_oversight_board": trust_data.get("civilian_oversight", "Unknown"),
+                "body_cameras_usage": trust_data.get("body_cameras", "Unknown"),
+                "complaint_resolution_system": trust_data.get("complaint_system", "Unknown")
+            },
+            "specialized_units": {
+                "tourist_police": trust_data.get("tourist_police", "Unknown"),
+                "cybercrime_unit": trust_data.get("cybercrime_unit", "Unknown"),
+                "anti_corruption_unit": trust_data.get("anti_corruption_unit", "Unknown"),
+                "emergency_response_team": trust_data.get("emergency_team", "Unknown")
+            },
+            "data_sources": trust_data.get("sources", []),
+            "scraped_at": time.time(),
+            "confidence_level": trust_data.get("confidence", "Medium")
+        }
+        
+        return police_trust_data
+        
+    except Exception as e:
+        print(f"Police trust data scraping error for {country}: {str(e)}")
+        return get_default_police_trust_data(country)
+
+def scrape_transparency_international_data(country: str) -> Dict[str, Any]:
+    """
+    Transparency International Corruption Perceptions Indexからデータを取得
+    """
+    try:
+        ti_url = "https://www.transparency.org/en/cpi"
+        session = requests.Session()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = session.get(ti_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # 国別の汚職認識指数を探す
+        corruption_score = None
+        tables = soup.find_all('table')
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 2:
+                    if country.lower() in cells[0].get_text().lower():
+                        score_text = cells[1].get_text()
+                        score_match = re.findall(r'\d+', score_text)
+                        if score_match:
+                            corruption_score = 100 - int(score_match[0])  # 反転（高いほど汚職が多い）
+                            break
+        
+        return {
+            "corruption_perception": corruption_score or 30.0,
+            "sources": ["Transparency International CPI"]
+        }
+        
+    except Exception as e:
+        print(f"TI data scraping error: {str(e)}")
+        return {"corruption_perception": 30.0}
+
+def scrape_gallup_trust_data(country: str) -> Dict[str, Any]:
+    """
+    Gallup World Pollから信頼度データを取得
+    """
+    try:
+        # Gallupのサイトは通常APIアクセスが必要なため、
+        # 公開されているレポートページから情報を取得
+        gallup_url = "https://www.gallup.com/analytics/232838/world-poll.aspx"
+        session = requests.Session()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = session.get(gallup_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # 警察信頼度に関するデータを探す
+        trust_score = None
+        for element in soup.find_all(string=re.compile(r'police|law enforcement', re.I)):
+            parent = element.parent
+            if parent:
+                score_match = re.findall(r'(\d+)%', parent.get_text())
+                if score_match:
+                    trust_score = float(score_match[0])
+                    break
+        
+        return {
+            "public_trust_score": trust_score or 65.0,
+            "effectiveness_score": (trust_score or 65.0) + 5,  # 推定値
+            "sources": ["Gallup World Poll"]
+        }
+        
+    except Exception as e:
+        print(f"Gallup data scraping error: {str(e)}")
+        return {"public_trust_score": 65.0}
+
+def scrape_oecd_safety_data(country: str) -> Dict[str, Any]:
+    """
+    OECD Better Life Indexから安全データを取得
+    """
+    try:
+        oecd_url = "http://www.oecdbetterlifeindex.org/topics/safety/"
+        session = requests.Session()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = session.get(oecd_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # 国別の安全指標を探す
+        safety_data = {}
+        
+        # 表やチャートから安全関連の数値を抽出
+        for element in soup.find_all(['div', 'span', 'td'], class_=re.compile(r'.*score.*|.*value.*|.*data.*')):
+            text = element.get_text()
+            if any(keyword in text.lower() for keyword in ['safety', 'security', 'crime', 'police']):
+                score_match = re.findall(r'(\d+\.?\d*)', text)
+                if score_match:
+                    safety_data["safety_score"] = float(score_match[0])
+        
+        return {
+            "reporting_rate": safety_data.get("safety_score", 68.0),
+            "satisfaction_rate": safety_data.get("safety_score", 65.0),
+            "sources": ["OECD Better Life Index"]
+        }
+        
+    except Exception as e:
+        print(f"OECD data scraping error: {str(e)}")
+        return {"reporting_rate": 68.0}
+
+def get_default_police_trust_data(country: str) -> Dict[str, Any]:
+    """
+    デフォルト警察信頼度データ（スクレイピング失敗時）
+    """
+    return {
+        "country": country,
+        "public_trust_in_police": 65.0,
+        "police_effectiveness_rating": 70.0,
+        "corruption_in_police_force": 25.0,
+        "police_response_time_minutes": 12.0,
+        "crime_reporting_rate": 68.0,
+        "victim_satisfaction_rate": 65.0,
         "police_accountability_measures": {
-            "internal_affairs_department": "Present",
-            "civilian_oversight_board": "Present",
-            "body_cameras_usage": "Widespread",
-            "complaint_resolution_system": "Effective"
+            "internal_affairs_department": "Unknown",
+            "civilian_oversight_board": "Unknown",
+            "body_cameras_usage": "Unknown",
+            "complaint_resolution_system": "Unknown"
         },
         "specialized_units": {
-            "tourist_police": "Available",
-            "cybercrime_unit": "Available", 
-            "anti_corruption_unit": "Available",
-            "emergency_response_team": "Available"
+            "tourist_police": "Unknown",
+            "cybercrime_unit": "Unknown", 
+            "anti_corruption_unit": "Unknown",
+            "emergency_response_team": "Unknown"
         },
-        "international_cooperation": {
-            "interpol_membership": "Active",
-            "regional_police_cooperation": "Strong",
-            "information_sharing": "Good"
-        },
-        "data_sources": [
-            "National Crime Victimization Survey",
-            "Police Performance Indicators",
-            "Public Opinion Surveys"
-        ],
-        "last_updated": "2024-02"
+        "data_sources": ["Default estimates"],
+        "note": "Real data could not be retrieved"
     }
-    
-    return police_trust_data
 
 def calculate_law_enforcement_score(law_data: Dict[str, Any]) -> float:
     """
